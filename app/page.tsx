@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useEffect, useState } from 'react';
+import { Task } from '@/types/db';
 
 export default function Home() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -45,38 +46,67 @@ export default function Home() {
 
 /* ----- ultra-minimal tasks component ----- */
 function Tasks() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<Task[]>([]);
   const [title, setTitle] = useState('');
 
   async function load() {
-    const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-    setItems(data ?? []);
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setItems((data ?? []) as Task[]);
   }
+
   useEffect(() => { load(); }, []);
 
   async function add() {
     if (!title.trim()) return;
-    await supabase.from('tasks').insert({ title });
+    const { error } = await supabase
+      .from('tasks')
+      .insert({ title }); // user_id set via default
+    if (error) console.error(error);
     setTitle('');
     load();
   }
+
   async function toggle(id: string, is_done: boolean) {
-    await supabase.from('tasks').update({ is_done: !is_done }).eq('id', id);
+    const { error } = await supabase
+      .from('tasks')
+      .update({ is_done: !is_done })
+      .eq('id', id);
+    if (error) console.error(error);
     load();
   }
 
   return (
     <div className="max-w-md">
       <div className="flex gap-2 mb-4">
-        <input className="border rounded px-2 py-1 flex-1"
-               value={title} onChange={e => setTitle(e.target.value)} placeholder="New task..." />
-        <button className="px-3 py-1 rounded bg-blue-600 text-white" onClick={add}>Add</button>
+        <input
+          className="border rounded px-2 py-1 flex-1"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="New task..."
+        />
+        <button className="px-3 py-1 rounded bg-blue-600 text-white" onClick={add}>
+          Add
+        </button>
       </div>
       <ul className="space-y-2">
         {items.map(t => (
           <li key={t.id} className="flex items-center gap-2">
-            <input type="checkbox" checked={t.is_done} onChange={() => toggle(t.id, t.is_done)} />
-            <span className={t.is_done ? 'line-through text-gray-500' : ''}>{t.title}</span>
+            <input
+              type="checkbox"
+              checked={t.is_done}
+              onChange={() => toggle(t.id, t.is_done)}
+            />
+            <span className={t.is_done ? 'line-through text-gray-500' : ''}>
+              {t.title}
+            </span>
           </li>
         ))}
       </ul>
